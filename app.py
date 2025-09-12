@@ -35,7 +35,10 @@ def debug_path():
 
 
 # Load pre-trained model
-model = joblib.load('models/model.pkl')
+base_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(base_dir, 'models', 'model.pkl')
+
+model = joblib.load(model_path)
 
 columns = [
     'lead_time', 'arrival_date_year', 'arrival_date_week_number', 'arrival_date_day_of_month', 
