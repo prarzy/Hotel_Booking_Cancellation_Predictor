@@ -1,9 +1,10 @@
 from flask import Flask, jsonify, request, send_from_directory
 from datetime import datetime
+from encoders import FrequencyEncoder
 import joblib
 import pandas as pd
 from flask_cors import CORS
-from sklearn.base import BaseEstimator, TransformerMixin
+#from sklearn.base import BaseEstimator, TransformerMixin
 import os
 
 # Initialize Flask app
@@ -31,32 +32,7 @@ def debug_path():
         response['has_index'] = os.path.exists(index_path)
     
     return jsonify(response)
-# Custom Frequency Encoder
-class FrequencyEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self, columns=None):
-        self.freq_maps = {}
-        self.columns = columns
 
-    def fit(self, X, y=None):
-        if not hasattr(X, 'columns'):
-            if self.columns is None:
-                raise ValueError("Column names must be provided for array input")
-            X = pd.DataFrame(X, columns=self.columns)
-        else:
-            self.columns = X.columns.tolist()
-            
-        for col in self.columns:
-            self.freq_maps[col] = X[col].value_counts(normalize=True).to_dict()
-        return self
-
-    def transform(self, X):
-        if not hasattr(X, 'columns'):
-            X = pd.DataFrame(X, columns=self.columns)
-        X = X.copy()
-        for col in self.freq_maps:
-            if col in X:
-                X[col] = X[col].map(self.freq_maps[col]).fillna(0)
-        return X
 
 # Load pre-trained model
 model = joblib.load('models/model.pkl')
