@@ -1,5 +1,5 @@
 import { useState } from 'react';
-const API_URL = import.meta.env.VITE_API_URL;
+//const API_URL = import.meta.env.VITE_API_URL;
 
 function Predict({ onPrediction }) {
   // Initial form state
@@ -25,7 +25,7 @@ function Predict({ onPrediction }) {
     
     try {
       // Send POST request to backend
-      const res = await fetch(`${API_URL}/predict`, {
+      const res = await fetch("/predict", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ features: formData })
