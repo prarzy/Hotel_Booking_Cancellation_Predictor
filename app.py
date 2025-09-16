@@ -12,6 +12,7 @@ import logging
 import requests
 
 # Initialize Flask app
+logging.basicConfig(level=logging.INFO)
 base_dir = os.path.dirname(os.path.abspath(__file__))
 build_path = os.path.join(base_dir, 'frontend', 'hotel_booking_ui', 'dist')
 
@@ -24,37 +25,44 @@ app = Flask(__name__, static_folder=build_path, static_url_path="")
 CORS(app)  # Enable CORS for all routes
 
 def ensure_model_exists():
+    """Download the model from GitHub if not present or on Railway."""
     model_path = os.path.join(base_dir, 'models', 'model.pkl')
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
+    # Detect Railway environment
     is_railway = os.environ.get('RAILWAY_ENVIRONMENT') is not None
 
     if not is_railway and os.path.exists(model_path):
-        print("Local development - using LFS model file")
+        logging.info("Local development - using existing LFS model file")
         return True
-    else:
-        try:
-            model_url = "https://github.com/prarzy/Hotel_Booking_Cancellation_Predictor/releases/download/v1.0.0/model.pkl?raw=true"
-            print(f"Railway environment - downloading model from {model_url}")
 
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            response = requests.get(model_url, headers=headers)
-            response.raise_for_status()
+    # Otherwise, download from GitHub
+    try:
+        model_url = "https://github.com/prarzy/Hotel_Booking_Cancellation_Predictor/releases/download/v1.0.0/model.pkl?raw=true"
+        logging.info(f"Railway environment - downloading model from {model_url}")
 
-            with open(model_path, 'wb') as f:
-                f.write(response.content)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(model_url, headers=headers)
+        response.raise_for_status()  # Raise error if not 200 OK
 
-            file_size = os.path.getsize(model_path)
-            print(f"Downloaded model file size: {file_size} bytes")
+        # Write content to file
+        with open(model_path, 'wb') as f:
+            f.write(response.content)
 
-            if file_size < 1000:
-                print("Model file too small! Likely invalid or corrupted.")
-                return False
+        # Check file size
+        file_size = os.path.getsize(model_path)
+        logging.info(f"Downloaded model file size: {file_size} bytes")
 
-            return True
-        except Exception as e:
-            print(f"Error downloading model: {e}")
+        if file_size < 1000:
+            logging.error("Model file too small! Likely invalid or corrupted.")
             return False
+
+        logging.info("Model downloaded successfully")
+        return True
+
+    except Exception as e:
+        logging.error(f"Error downloading model: {e}")
+        return False
 
 @app.route('/debug')
 def debug_path():
