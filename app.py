@@ -7,6 +7,8 @@ import pandas as pd
 from flask_cors import CORS
 import os
 import urllib.request
+import traceback
+import logging
 
 # Initialize Flask app
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -63,12 +65,22 @@ def debug_path():
     return jsonify(response)
 
 # Load pre-trained model
+logging.basicConfig(level=logging.INFO)
 try:
     model_path = os.path.join(base_dir, 'models', 'model.pkl')
+    logging.info(f"Trying to load model from: {model_path}")
+
     model = joblib.load(model_path)
-    print("Model loaded successfully")
+    
+    logging.info("Model loaded successfully")
+
 except Exception as e:
-    print(f"Error loading model: {e}")
+    logging.error(f"Error loading model: {e}")
+    
+    # Log the full traceback
+    tb = traceback.format_exc()
+    logging.error(f"Full traceback:\n{tb}")
+    
     model = None
 
 
