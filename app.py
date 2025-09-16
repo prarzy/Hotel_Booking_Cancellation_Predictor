@@ -6,6 +6,7 @@ import joblib
 import pandas as pd
 from flask_cors import CORS
 import os
+import urllib.request
 
 # Initialize Flask app
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +19,29 @@ if not os.path.exists(build_path):
     
 app = Flask(__name__, static_folder=build_path, static_url_path="")
 CORS(app)  # Enable CORS for all routes
+
+def ensure_model_exists():
+    model_path = os.path.join(base_dir, 'models', 'model.pkl')
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    
+    # Check if we're on Railway (use URL) or local (use LFS)
+    is_railway = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+    
+    if not is_railway and os.path.exists(model_path):
+        # Local development - use LFS-tracked file
+        print("Local development - using LFS model file")
+        return True
+    else:
+        # On Railway - download from URL
+        try:
+            model_url = "https://github.com/prarzy/Hotel_Booking_Cancellation_Predictor/releases/download/v1.0.0/model.pkl"
+            print("Railway environment - downloading model...")
+            urllib.request.urlretrieve(model_url, model_path)
+            print("Model downloaded successfully")
+            return True
+        except Exception as e:
+            print(f"Error downloading model: {e}")
+            return False
 
 @app.route('/debug')
 def debug_path():
@@ -47,23 +71,7 @@ except Exception as e:
     print(f"Error loading model: {e}")
     model = None
 
-@app.route('/check-model')
-def check_model():
-    model_path = os.path.join(base_dir, 'models', 'model.pkl')
-    
-    response = {
-        'model_path': model_path,
-        'exists': os.path.exists(model_path),
-        'size': os.path.getsize(model_path) if os.path.exists(model_path) else 0
-    }
-    
-    if os.path.exists(model_path):
-        # Check if it's a Git LFS pointer file
-        with open(model_path, 'r') as f:
-            content = f.read(200)
-            response['is_lfs_pointer'] = 'oid sha256' in content or 'version https' in content
-    
-    return jsonify(response)
+
 
 columns = [
     'lead_time', 'arrival_date_year', 'arrival_date_week_number', 'arrival_date_day_of_month', 
