@@ -9,6 +9,7 @@ import os
 import urllib.request
 import traceback
 import logging
+import requests
 
 # Initialize Flask app
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,21 +26,31 @@ CORS(app)  # Enable CORS for all routes
 def ensure_model_exists():
     model_path = os.path.join(base_dir, 'models', 'model.pkl')
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    
-    # Check if we're on Railway (use URL) or local (use LFS)
+
     is_railway = os.environ.get('RAILWAY_ENVIRONMENT') is not None
-    
+
     if not is_railway and os.path.exists(model_path):
-        # Local development - use LFS-tracked file
         print("Local development - using LFS model file")
         return True
     else:
-        # On Railway - download from URL
         try:
-            model_url = "https://github.com/prarzy/Hotel_Booking_Cancellation_Predictor/releases/download/v1.0.0/model.pkl"
-            print("Railway environment - downloading model...")
-            urllib.request.urlretrieve(model_url, model_path)
-            print("Model downloaded successfully")
+            model_url = "https://github.com/prarzy/Hotel_Booking_Cancellation_Predictor/releases/download/v1.0.0/model.pkl?raw=true"
+            print(f"Railway environment - downloading model from {model_url}")
+
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(model_url, headers=headers)
+            response.raise_for_status()
+
+            with open(model_path, 'wb') as f:
+                f.write(response.content)
+
+            file_size = os.path.getsize(model_path)
+            print(f"Downloaded model file size: {file_size} bytes")
+
+            if file_size < 1000:
+                print("Model file too small! Likely invalid or corrupted.")
+                return False
+
             return True
         except Exception as e:
             print(f"Error downloading model: {e}")
