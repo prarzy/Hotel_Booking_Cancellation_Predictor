@@ -1,0 +1,6 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "git lfs install && git lfs pull"
+  }
+}

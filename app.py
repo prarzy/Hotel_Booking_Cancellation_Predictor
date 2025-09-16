@@ -47,6 +47,24 @@ except Exception as e:
     print(f"Error loading model: {e}")
     model = None
 
+@app.route('/check-model')
+def check_model():
+    model_path = os.path.join(base_dir, 'models', 'model.pkl')
+    
+    response = {
+        'model_path': model_path,
+        'exists': os.path.exists(model_path),
+        'size': os.path.getsize(model_path) if os.path.exists(model_path) else 0
+    }
+    
+    if os.path.exists(model_path):
+        # Check if it's a Git LFS pointer file
+        with open(model_path, 'r') as f:
+            content = f.read(200)
+            response['is_lfs_pointer'] = 'oid sha256' in content or 'version https' in content
+    
+    return jsonify(response)
+
 columns = [
     'lead_time', 'arrival_date_year', 'arrival_date_week_number', 'arrival_date_day_of_month', 
     'stays_in_weekend_nights', 'stays_in_week_nights', 'adults', 'children', 'is_repeated_guest', 
