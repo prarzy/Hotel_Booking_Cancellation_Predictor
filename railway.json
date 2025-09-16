@@ -1,6 +1,6 @@
 {
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "git lfs install && git lfs pull"
+    "buildCommand": "apt-get update && apt-get install -y git-lfs && git lfs install && git lfs pull"
   }
 }
