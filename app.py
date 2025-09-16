@@ -1,21 +1,26 @@
 from flask import Flask, jsonify, request, send_from_directory
 from datetime import datetime
-from encoders import FrequencyEncoder
+# Make sure you have an encoders.py file with FrequencyEncoder
+from encoders import FrequencyEncoder  
 import joblib
 import pandas as pd
 from flask_cors import CORS
-#from sklearn.base import BaseEstimator, TransformerMixin
 import os
 
 # Initialize Flask app
 base_dir = os.path.dirname(os.path.abspath(__file__))
 build_path = os.path.join(base_dir, 'frontend', 'hotel_booking_ui', 'dist')
+
+# Check if the build path exists, if not use a fallback for Railway
+if not os.path.exists(build_path):
+    # Try alternative path structure that might work on Railway
+    build_path = os.path.join(base_dir, 'dist')
+    
 app = Flask(__name__, static_folder=build_path, static_url_path="")
-CORS(app)
+CORS(app)  # Enable CORS for all routes
 
 @app.route('/debug')
 def debug_path():
-    import os
     static_path = app.static_folder
     exists = os.path.exists(static_path)
     
@@ -33,12 +38,14 @@ def debug_path():
     
     return jsonify(response)
 
-
 # Load pre-trained model
-base_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(base_dir, 'models', 'model.pkl')
-
-model = joblib.load(model_path)
+try:
+    model_path = os.path.join(base_dir, 'models', 'model.pkl')
+    model = joblib.load(model_path)
+    print("Model loaded successfully")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    model = None
 
 columns = [
     'lead_time', 'arrival_date_year', 'arrival_date_week_number', 'arrival_date_day_of_month', 
@@ -53,6 +60,9 @@ columns = [
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
+        if model is None:
+            return jsonify({'error': 'Model not loaded'}), 500
+            
         data = request.json
         if data is None:
             raise ValueError("No JSON received from frontend")
@@ -127,14 +137,39 @@ def predict():
 def serve(path):
     static_folder = app.static_folder
     
+    # Check if the static folder exists
+    if not os.path.exists(static_folder):
+        return jsonify({
+            "error": "Static files not found",
+            "path": static_folder,
+            "absolute_path": os.path.abspath(static_folder)
+        }), 500
+    
     # Check if the requested path is a static file
     if path != "" and os.path.exists(os.path.join(static_folder, path)):
         return send_from_directory(static_folder, path)
     else:
         # For all other routes, serve index.html (React Router will handle it)
-        return send_from_directory(static_folder, "index.html")
-print("Serving static folder:", os.path.abspath(app.static_folder))
+        index_path = os.path.join(static_folder, "index.html")
+        if os.path.exists(index_path):
+            return send_from_directory(static_folder, "index.html")
+        else:
+            return jsonify({
+                "error": "Index file not found",
+                "files": os.listdir(static_folder)
+            }), 500
+
+# Health check route for Railway
+@app.route('/health')
+def health_check():
+    return jsonify({
+        'status': 'healthy',
+        'model_loaded': model is not None,
+        'static_folder': app.static_folder,
+        'static_folder_exists': os.path.exists(app.static_folder)
+    })
 
 # Run the app
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host="0.0.0.0", port=port)
